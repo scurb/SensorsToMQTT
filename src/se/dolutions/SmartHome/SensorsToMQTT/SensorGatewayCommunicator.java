@@ -10,7 +10,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import se.dolutions.SmartHome.SensorsToMQTT.Channels.IChannelPublishEventListener;
+import se.dolutions.SmartHome.SensorsToMQTT.Channels.IChannelMySensorsEventListener;
 import se.dolutions.SmartHome.SensorsToMQTT.Configuration.ConfigurationSensorNetwork;
 import se.dolutions.SmartHome.SensorsToMQTT.Events.ISensorEventListener;
 import se.dolutions.SmartHome.SensorsToMQTT.Events.SensorEventInternal;
@@ -26,7 +26,7 @@ import se.dolutions.SmartHome.SensorsToMQTT.Sensors.SensorValue;
 
 public class SensorGatewayCommunicator extends Thread implements ISensorEventListener, IConnectionStateListener, ILogger {
 
-	private List<IChannelPublishEventListener> _pubListeners = new ArrayList<IChannelPublishEventListener>();
+	private List<IChannelMySensorsEventListener> _pubListeners = new ArrayList<IChannelMySensorsEventListener>();
 
 
 	GatewayIPClient ipClient;
@@ -129,40 +129,40 @@ public class SensorGatewayCommunicator extends Thread implements ISensorEventLis
 	}
 
 
-    public synchronized void addChannelPublisher( IChannelPublishEventListener l ) {
+    public synchronized void addChannelPublisher( IChannelMySensorsEventListener l ) {
         _pubListeners.add( l );
     }
     
-    public synchronized void removeChannelPublisher( IChannelPublishEventListener l ) {
+    public synchronized void removeChannelPublisher( IChannelMySensorsEventListener l ) {
         _pubListeners.remove( l );
     }	
     
 	private synchronized void fireSensorChangedEvent(Sensor sensor, SensorValue sensorValue) {
 //        SensorEventChanged sChangedEvent = new SensorEventChanged( this, sensor, SensorMessageType.MT_SetVariable);
-        Iterator<IChannelPublishEventListener> listeners = _pubListeners.iterator();
+        Iterator<IChannelMySensorsEventListener> listeners = _pubListeners.iterator();
         while( listeners.hasNext() ) {
-            ( (IChannelPublishEventListener) listeners.next() ).publishNewSensorValue(sensor, sensorValue);
+            ( (IChannelMySensorsEventListener) listeners.next() ).publishNewSensorValue(sensor, sensorValue);
         }        
     }	
 
 	private synchronized void fireSensorNetworkPresentationEvent(){
-        Iterator<IChannelPublishEventListener> listeners = _pubListeners.iterator();
+        Iterator<IChannelMySensorsEventListener> listeners = _pubListeners.iterator();
         while( listeners.hasNext() ) {
-            ( (IChannelPublishEventListener) listeners.next() ).publishNodePresentation(sensorPool.nodeList);
+            ( (IChannelMySensorsEventListener) listeners.next() ).publishNodePresentation(sensorPool.nodeList);
         }        		
 	}
 
 	private synchronized void fireSensorNodePresentationEvent(Node node){
-        Iterator<IChannelPublishEventListener> listeners = _pubListeners.iterator();
+        Iterator<IChannelMySensorsEventListener> listeners = _pubListeners.iterator();
         while( listeners.hasNext() ) {
-            ( (IChannelPublishEventListener) listeners.next() ).publishNewNodeInformation(node);
+            ( (IChannelMySensorsEventListener) listeners.next() ).publishNewNodeInformation(node);
         }        		
 	}
 
 	private synchronized void fireSensorSensorPresentationEvent(Sensor sensor){
-        Iterator<IChannelPublishEventListener> listeners = _pubListeners.iterator();
+        Iterator<IChannelMySensorsEventListener> listeners = _pubListeners.iterator();
         while( listeners.hasNext() ) {
-            ( (IChannelPublishEventListener) listeners.next() ).publishNewSensorInformation(sensor);
+            ( (IChannelMySensorsEventListener) listeners.next() ).publishNewSensorInformation(sensor);
         }        		
 	}
 /*
@@ -264,7 +264,7 @@ public class SensorGatewayCommunicator extends Thread implements ISensorEventLis
 		
 		Node storedNode = sensorPool.getNodeFromPool(event.sensorMessageInternal().getRadioID());
 		
-		if((storedNode==null) && (event.sensorMessageInternal().getMessageInternalType()!=SensorMessageInternalType.REQUEST_ID)){
+		if((storedNode==null) && (event.sensorMessageInternal().getMessageInternalType()!=SensorMessageInternalType.ID_REQUEST)){
 			System.err.println("This node was not previously added to the network. Will not accept presentation from node with radioID " + event.sensorMessageInternal().getRadioID() + " and childID " + event.sensorMessageInternal().getChildID() + ".");
 			return;
 		}
@@ -276,7 +276,76 @@ public class SensorGatewayCommunicator extends Thread implements ISensorEventLis
 			storedSensor = sensorPool.getSensorFromPool(event.sensorMessageInternal().getRadioID(), event.sensorMessageInternal().getChildID());
 		
 		switch(event.sensorMessageInternal().getMessageInternalType()){
-		case BATTERY_DATE: 
+		case BATTERY_LEVEL: //Use this to report the battery level (in percent 0-100).
+			break;
+		case TIME: //Sensors can request the current time from the Controller using this message. The time will be reported as the seconds since 1970
+			break;
+		case VERSION: //Sensors report their library version at startup using this message type
+			break;
+		case ID_REQUEST: //Use this to request a unique node id from the controller.
+			log("Global (255;255) request for a new radio ID");
+			if(!inclusionEnabled){
+				log("Got a request for a new ID but Inclusion mode was not enabled!", LogLevel.Warn);
+				break;
+			}
+			Integer nodeID= storage.assignNextAvailableRadioID();
+			
+			//Request made, DB updated - lets create node!
+			Node newNode = new Node(storage);
+			newNode.setRadioID(nodeID);
+			sensorPool.addNodeToPool(newNode);
+
+			//Reply back to the network!
+			ipClient.sendRequestIDResponse(event.sensorMessageInternal().getRadioID(), event.sensorMessageInternal().getChildID(), nodeID);
+
+			break;
+		case ID_RESPONSE: //Id response back to sensor. Payload contains sensor id.
+			break;
+		case INCLUSION_MODE: //Start/stop inclusion mode of the Controller (1=start, 0=stop).
+			if(event.sensorMessageInternal().getData().equalsIgnoreCase("1"))
+				startInclusionMode();
+			else
+				stopInclusionMode();
+
+			break;
+		case CONFIG: //Config request from node. Reply with (M)etric or (I)mperal back to sensor.
+			ipClient.sendRequestMetricResponse(event.sensorMessageInternal().getRadioID(), event.sensorMessageInternal().getChildID(), "M");
+
+			break;
+		case FIND_PARENT: //When a sensor starts up, it broadcast a search request to all neighbor nodes. They reply with a I_FIND_PARENT_RESPONSE.
+			break;
+		case FIND_PARENT_RESPONSE: //Reply message type to I_FIND_PARENT request.
+			break;
+		case LOG_MESSAGE: //Sent by the gateway to the Controller to trace-log a message
+			if((globalNodeData) && (storedNode!=null))
+				log("Node " + storedNode.getRadioID() + " log: " + event.sensorMessageInternal().getData());
+			else if(storedSensor!=null)
+				log("Sensor " + storedSensor.getSensorID() + " log: " + event.sensorMessageInternal().getData());
+
+			break;
+		case CHILDREN: //A message that can be used to transfer child sensors (from EEPROM routing table) of a repeating node.
+			break;
+		case SKETCH_NAME: //Optional sketch name that can be used to identify sensor in the Controller GUI
+			storedNode.setSketchName(event.sensorMessageInternal().getData());
+			storedNode.saveNode();
+			fireSensorNodePresentationEvent(storedNode);
+
+			break;
+		case SKETCH_VERSION: //Optional sketch version that can be reported to keep track of the version of sensor in the Controller GUI.
+			storedNode.setSketchVersion(event.sensorMessageInternal().getData());
+			storedNode.saveNode();
+			fireSensorNodePresentationEvent(storedNode);
+
+			break;
+		case REBOOT: //Used by OTA firmware updates. Request for node to reboot.
+			break;
+		case GATEWAY_READY: //Send by gateway to controller when startup is complete.
+			log("Gateway ready");
+			//This should trigger "connection ready". Not until...
+			break;
+		
+		
+		/*case BATTERY_DATE: 
 			
 			break;
 		case LAST_TRIP: 
@@ -341,6 +410,7 @@ public class SensorGatewayCommunicator extends Thread implements ISensorEventLis
 			storedNode.saveNode();
 			fireSensorNodePresentationEvent(storedNode);
 			break;
+			*/
 		default:
 			System.err.println("No message type was found!");
 			break;

@@ -7,17 +7,35 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 import se.dolutions.SmartHome.SensorsToMQTT.Channels.ChannelMQTT;
+import se.dolutions.SmartHome.SensorsToMQTT.Configuration.ConfigurationAlarm;
 import se.dolutions.SmartHome.SensorsToMQTT.Configuration.ConfigurationChannel;
 import se.dolutions.SmartHome.SensorsToMQTT.Configuration.ConfigurationSensorNetwork;
 import se.dolutions.SmartHome.SensorsToMQTT.Configuration.SensorsToMQTTConfiguration;
+import se.dolutions.SmartHome.AlarmToMQTT.AlarmMasterClass;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class SensorsToMQTT {
+public class SensorsToMQTT implements ILogger {
 
-	private static Logger logger = LogManager.getFormatterLogger("SensorsToMQTT - Main");
-		
+	//private static Logger logger = LogManager.getFormatterLogger("SensorsToMQTT - Main");
+	
+	private static Logger logger;
+
+	
+	public void log(String logText, LogLevel logLevel)
+	{
+		switch(logLevel){
+		case Info: logger.info(logText); break;
+		case Error: logger.error(logText); break;
+		case Warn: logger.warn(logText); break;
+		case Trace: logger.trace(logText); break;
+		case Debug: logger.debug(logText); break;
+		case Fatal: logger.fatal(logText); break;
+		default: logger.info(logText); break;
+		}
+	}
+	
+	
 	public static void main(String[] args) {
 
 		SensorsToMQTTConfiguration appConfiguration = new SensorsToMQTTConfiguration();
@@ -40,6 +58,21 @@ public class SensorsToMQTT {
 			gwCommunicator.start();	
 			threadList.add(gwCommunicator);
 		}
+		
+		for(ConfigurationAlarm cfgAlarm : appConfiguration.getAlarmList()){
+			AlarmMasterClass alarm = new AlarmMasterClass(cfgAlarm);
+			ChannelMQTT channelMQTT;
+			for(ConfigurationChannel cfgChannel : cfgAlarm.getChannelList()){
+				channelMQTT = new ChannelMQTT();
+				channelMQTT.setLogger(alarm);
+				channelMQTT.channelConfigure(cfgChannel);		
+				alarm.addChannelPublisher(channelMQTT);
+			}
+			
+			alarm.start();
+			
+		}
+		
 		
 		
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));

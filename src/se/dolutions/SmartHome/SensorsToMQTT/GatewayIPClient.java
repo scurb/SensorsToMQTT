@@ -82,9 +82,14 @@ public class GatewayIPClient implements Runnable {
 	 						SensorMessagePresentation sensorPresentation = new SensorMessagePresentation();
 	 						sensorPresentation.setRadioID(Integer.parseInt(parts[0]));
 	 						sensorPresentation.setChildID(Integer.parseInt(parts[1]));
-	 						sensorPresentation.setSensorType(SensorType.getSensorType(Integer.parseInt(parts[3])));
-	 						if(parts.length>4)
-	 							sensorPresentation.setSensorLibraryVersion(parts[4]);
+	 						sensorPresentation.setSensorType(SensorType.getSensorType(Integer.parseInt(parts[4])));
+	 						if(Integer.parseInt(parts[3])==1) {
+	 							sensorPresentation.setAckRequested(true);
+	 						} else {
+	 							sensorPresentation.setAckRequested(false);
+	 						}
+	 						if(parts.length>5)
+	 							sensorPresentation.setSensorLibraryVersion(parts[5]);
 	 						
 	 						fireSensorPresentationEvent(sensorPresentation);
 	 						break; 
@@ -95,10 +100,16 @@ public class GatewayIPClient implements Runnable {
 	 						_sensorSetVariableMessage.setRadioID(Integer.parseInt(parts[0]));
 	 						_sensorSetVariableMessage.setChildID(Integer.parseInt(parts[1]));
 
+	 						if(Integer.parseInt(parts[3])==1) {
+	 							_sensorSetVariableMessage.setAckRequested(true);
+	 						} else {
+	 							_sensorSetVariableMessage.setAckRequested(false);
+	 						}
+	 							 						
 	 						SensorValue sValue = new SensorValue();
-							sValue.setSensorValueType(SensorValueType.getSensorValueType(Integer.parseInt(parts[3])));
-							if(parts.length>4)
-								sValue.setValue(parts[4]);
+							sValue.setSensorValueType(SensorValueType.getSensorValueType(Integer.parseInt(parts[4])));
+							if(parts.length>5)
+								sValue.setValue(parts[5]);
 							
 							_sensorSetVariableMessage.setSensorValue(sValue);
 							
@@ -112,8 +123,14 @@ public class GatewayIPClient implements Runnable {
 							_sensorRequestVariableMessage = new SensorMessageRequestVariable();
 							_sensorRequestVariableMessage.setRadioID(Integer.parseInt(parts[0]));
 							_sensorRequestVariableMessage.setChildID(Integer.parseInt(parts[1]));
+
+	 						if(Integer.parseInt(parts[3])==1) {
+	 							_sensorRequestVariableMessage.setAckRequested(true);
+	 						} else {
+	 							_sensorRequestVariableMessage.setAckRequested(false);
+	 						}							
 							
-							_sensorRequestVariableMessage.setRequestedValueType(SensorValueType.getSensorValueType(Integer.parseInt(parts[3])));
+							_sensorRequestVariableMessage.setRequestedValueType(SensorValueType.getSensorValueType(Integer.parseInt(parts[4])));
 							
 							if(_sensorRequestVariableMessage!=null)
 								fireSensorRequestVariableEvent(_sensorRequestVariableMessage);
@@ -128,9 +145,16 @@ public class GatewayIPClient implements Runnable {
 							
 							_internalMessage.setRadioID(Integer.parseInt(parts[0]));
 							_internalMessage.setChildID(Integer.parseInt(parts[1]));
-							_internalMessage.setMessageInternalType(SensorMessageInternalType.getSensorMessageInternalType(Integer.parseInt(parts[3])));
-							if(parts.length>=5)
-								_internalMessage.setData(parts[4]);
+							
+	 						if(Integer.parseInt(parts[3])==1) {
+	 							_internalMessage.setAckRequested(true);
+	 						} else {
+	 							_internalMessage.setAckRequested(false);
+	 						}							
+							
+							_internalMessage.setMessageInternalType(SensorMessageInternalType.getSensorMessageInternalType(Integer.parseInt(parts[4])));
+							if(parts.length>=6)
+								_internalMessage.setData(parts[5]);
 							
 							fireSensorInternalEvent(_internalMessage);
 									
@@ -180,7 +204,8 @@ public class GatewayIPClient implements Runnable {
 	}
 	
 	public void sendRequestIDResponse(Integer radioID, Integer childID, Integer assignedRadioID){
-		sendDataToGW(radioID.toString() + ";" + childID.toString() + ";4;5;" + assignedRadioID.toString() + ";" + "\n");
+		//1.4 format
+		sendDataToGW(radioID.toString() + ";" + childID.toString() + ";3;0;4;" + assignedRadioID.toString() + ";" + "\n");
 	}
 	
 	public void sendRequestMetricResponse(Integer radioID, Integer childID, String metricCode){

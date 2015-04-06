@@ -48,7 +48,11 @@ public enum SensorType {
 	S_ARDUINO_RELAY,
 	S_LOCK,
 	S_WATER,
-	
+	S_IR,
+	S_AIR_QUALITY,
+	S_CUSTOM,
+	S_DUST,
+	S_SCENE_CONTROLLER,
 	S_UNDEFINED;
 	
 	
@@ -75,7 +79,12 @@ public enum SensorType {
 			case 17: return S_ARDUINO_NODE;
 			case 18: return S_ARDUINO_RELAY;
 			case 19: return S_LOCK;
-			case 20: return S_WATER;
+			case 20: return S_UV;
+			case 21: return S_WATER;
+			case 22: return S_AIR_QUALITY;
+			case 23: return S_CUSTOM;
+			case 24: return S_DUST;
+			case 25: return S_SCENE_CONTROLLER;
 			default: return S_UNDEFINED;
 		}
 	

@@ -80,7 +80,10 @@ public enum SensorValueType {
 	V_IR_RECEIVE,
 	V_FLOW,
 	V_VOLUME,
-	V_LOCK_STATUS;
+	V_LOCK_STATUS,
+	V_DUST_LEVEL,
+	V_VOLTAGE,
+	V_CURRENT;
 	
 	public static SensorValueType getSensorValueType(Integer valueTypeValue){
 	
@@ -122,6 +125,9 @@ public enum SensorValueType {
 		case 34: return V_FLOW;
 		case 35: return V_VOLUME;
 		case 36: return V_LOCK_STATUS;
+		case 37: return V_DUST_LEVEL;
+		case 38: return V_VOLTAGE;
+		case 39: return V_CURRENT;
 		default: return null;
 		}
 	}

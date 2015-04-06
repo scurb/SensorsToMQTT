@@ -40,7 +40,7 @@ public class ConfigurationSensorNetwork {
 		return configSensorGwIp;
 	}
 	public void setConfigSensorGwIp(
-			ConfigurationSensorNetworkConnection configSensorGwIp) {
+		ConfigurationSensorNetworkConnection configSensorGwIp) {
 		this.configSensorGwIp = configSensorGwIp;
 	}
 	

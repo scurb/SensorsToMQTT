@@ -20,38 +20,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-/*
- * <xml>
-	<sensor-networks>
-		<sensor-network id="1" comment="Hemma/Lilldalsvägen">
-			<settings>
-				<ip>
-					<host>192.168.0.46</host>
-					<port>2001</port>
-				</ip>
-				<persistance type="MariaDB">
-					<host>localhost</host>
-					<login>root</login>
-					<database>SensorsToMQTT</database>
-					<password>root</password>
-					<port>8889</port>
-				</persistance>
-				<channels>
-					<channel type="MQTT">
-						<url>tcp://site.scurb.se:1883</url>
-						<rootTopic>home/sensors/</rootTopic>
-					</channel>
-				</channels>
-
-			</settings>
-		</sensor-network>
-	</sensor-networks>
-</xml>
- */
 
 public class SensorsToMQTTConfiguration {
 	
 	ArrayList<ConfigurationSensorNetwork> sensorNetworksList;
+	ArrayList<ConfigurationAlarm> alarmList;
 	
 	XPath xPath;
 	
@@ -59,9 +32,14 @@ public class SensorsToMQTTConfiguration {
 		return sensorNetworksList;
 	}
 	
-	
+	public ArrayList<ConfigurationAlarm> getAlarmList() {
+		return alarmList;
+	}
+
 	public SensorsToMQTTConfiguration(){
 		sensorNetworksList = new ArrayList<ConfigurationSensorNetwork>();
+		alarmList = new ArrayList<ConfigurationAlarm>();
+		
     	xPath =  XPathFactory.newInstance().newXPath();
 		
 	}
@@ -83,6 +61,7 @@ public class SensorsToMQTTConfiguration {
 	public void parseConfiguration(){
 		
 		ConfigurationSensorNetwork netwConfig;
+		ConfigurationAlarm alarmConfig;
 		
 	    try{
 	    	FileInputStream file = new FileInputStream(new File("SensorsToMQTT.xml"));
@@ -93,10 +72,51 @@ public class SensorsToMQTTConfiguration {
          
 	    	Document xmlDocument = builder.parse(file);
 
-
-	    	String expression = "/xml/sensor-networks/network";
-	    	NodeList networkList = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
+	    	
+	    	String expression = "/xml/alarms/alarm";
+	    	NodeList alarmNodes = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
 	    	Node subNode;
+	    	for(int i = 0; null!=alarmNodes && i < alarmNodes.getLength(); i++){
+	    		alarmConfig = new ConfigurationAlarm();
+	    		
+	    		subNode = (Node) xPath.evaluate("./type", alarmNodes.item(i), XPathConstants.NODE);
+	    		alarmConfig.setAlarmType(getNodeValue(subNode));
+
+	    		subNode = (Node) xPath.evaluate("./ip", alarmNodes.item(i), XPathConstants.NODE);
+	    		alarmConfig.setIp(getNodeValue(subNode));
+	    		
+	    		subNode = (Node) xPath.evaluate("./port", alarmNodes.item(i), XPathConstants.NODE);
+	    		alarmConfig.setIpport(Integer.parseInt(getNodeValue(subNode)));
+	    		
+	    		NodeList channelList = (NodeList) xPath.evaluate("./channels", alarmNodes.item(i), XPathConstants.NODESET);
+	    		Node channelNode;
+	    		ConfigurationChannel channelConfig;
+	    		for(int x=0; null!=channelList && x < channelList.getLength(); x++){
+	    			channelConfig = new ConfigurationChannel();
+	    			
+	    			channelNode = (Node) xPath.evaluate("./channel/url", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setChannelUrl(getNodeValue(channelNode));
+	    			channelNode = (Node) xPath.evaluate("./channel/type", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setChannelType(getNodeValue(channelNode));
+	    			channelNode = (Node) xPath.evaluate("./channel/rootTopic", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setRootTopic(getNodeValue(channelNode));
+	    			channelNode = (Node) xPath.evaluate("./channel/clientId", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setClientID(getNodeValue(channelNode));
+	    			channelNode = (Node) xPath.evaluate("./channel/username", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setUserName(getNodeValue(channelNode));
+	    			channelNode = (Node) xPath.evaluate("./channel/password", channelList.item(x), XPathConstants.NODE);	    			
+	    			channelConfig.setPassword(getNodeValue(channelNode));
+	    			
+	    			alarmConfig.getChannelList().add(channelConfig);
+	    		}
+	    		
+	    		alarmList.add(alarmConfig);
+	    		
+	    	}
+
+	    	expression = "/xml/sensor-networks/network";
+	    	NodeList networkList = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
+//	    	Node subNode;
 	    	for(int i = 0; null!=networkList && i < networkList.getLength(); i++){
 	    		//Ok - at least we found one sensor network!
 	    		netwConfig = new ConfigurationSensorNetwork();
@@ -165,5 +185,7 @@ public class SensorsToMQTTConfiguration {
 			e.printStackTrace();
 		} 			
 	}
+
+
 
 }

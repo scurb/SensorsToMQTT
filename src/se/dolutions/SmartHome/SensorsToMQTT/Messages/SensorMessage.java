@@ -6,7 +6,14 @@ public class SensorMessage {
 	Integer radioID;
 	Integer childID;
 	String sensorLibraryVersion;
+	Boolean ackRequested;
 
+	public Boolean getAckRequested() {
+		return ackRequested;
+	}
+	public void setAckRequested(Boolean ackRequested) {
+		this.ackRequested = ackRequested;
+	}
 	Sensor sensor;
 	public Sensor getSensor() {
 		return sensor;
